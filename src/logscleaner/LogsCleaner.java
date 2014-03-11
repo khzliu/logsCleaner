@@ -32,10 +32,17 @@ public class LogsCleaner {
     Map<String,ArrayList<String>> taskMap;
     String initFile = "taskList.xml";
     ArrayList<String> logsFileList;
+    float fileTime = 10;
+    float fileSize = 10;
     
     //初始化
     public void initConfig() {
-        testParseXmlData(initFile);
+        try{
+            testParseXmlData(initFile);
+        } catch(Exception e){
+            System.out.println("配置文件错误！！！");
+        }
+        
     }
     
     //处理大文件
@@ -47,7 +54,7 @@ public class LogsCleaner {
             //获取最后100行内容 并存入到contentList中
             rf = new RandomAccessFile(fileAbsoluteName, "rw");  
             long len = rf.length();
-            if(len >= 10*1024*1024){
+            if(len >= fileSize*1024*1024){
                 long start = rf.getFilePointer();  
                 long nextend = start + len - 1;  
                 String line;
@@ -106,7 +113,7 @@ public class LogsCleaner {
         Date d = new Date();
         long current = d.getTime();
 
-        if((modify + 30*24*60*60*1000) <= current) {
+        if((modify + fileTime*24*60*60*1000) <= current) {
             f.delete();
             return false;
         }      
@@ -155,6 +162,13 @@ public class LogsCleaner {
         Element root  = doc.getRootElement();
         //定义保存xml数据的缓冲字符串
         StringBuffer sb = new StringBuffer();
+        //获取要删除文件的最大限制大小
+        String theTime = root.element("time").getText();
+        fileTime = Float.parseFloat(theTime);
+        //获取要删除文件的最晚修改时间
+        String theSize = root.element("filesize").getText();
+        fileSize = Float.parseFloat(theSize);
+
         for(Iterator i_action=root.elementIterator();i_action.hasNext();){
             Element e_action = (Element)i_action.next();
             for(Iterator a_action=e_action.attributeIterator();a_action.hasNext();){
@@ -194,7 +208,7 @@ public class LogsCleaner {
 
             }
             try {
-            Thread.sleep(1000*24*60*60);//括号里面的5000代表5000毫秒，也就是5秒，可以该成你需要的时间
+                Thread.sleep(1000*24*60*60);//括号里面的5000代表5000毫秒，也就是5秒，可以该成你需要的时间
             } catch (InterruptedException e) {
                     e.printStackTrace();
             }

@@ -3,6 +3,8 @@
 To change this template, choose Tools | Templates
 and open the template in the editor.
 -->
+<time>30</time>
+<filesize>10</filesize>
 <taskList> 
     <task> 
         <documentPath>/usr/local/apache-tomcat/logs</documentPath> 
