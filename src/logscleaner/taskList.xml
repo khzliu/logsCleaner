@@ -3,15 +3,17 @@
 To change this template, choose Tools | Templates
 and open the template in the editor.
 -->
-<time>30</time>
-<filesize>10</filesize>
-<taskList> 
-    <task> 
-        <documentPath>/usr/local/apache-tomcat/logs</documentPath> 
-        <fileFilter>log|txt|xml</fileFilter> 
-    </task>
-    <task>
-        <documentPath>/home/logs</documentPath> 
-        <fileFilter>log|txt|xml</fileFilter>
-    </task> 
-</taskList>
+<root>
+    <time>30</time>
+    <filesize>10</filesize>
+    <taskList> 
+        <task> 
+            <documentPath>/sdcard/logs</documentPath> 
+            <fileFilter>log|txt|out</fileFilter> 
+        </task>
+        <task>
+            <documentPath>/sdcard/log</documentPath> 
+            <fileFilter>log|out</fileFilter>
+        </task> 
+    </taskList>
+</root>

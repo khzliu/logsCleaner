@@ -10,12 +10,12 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.dom4j.Document;
-import org.dom4j.Attribute;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
@@ -29,9 +29,9 @@ public class LogsCleaner {
     /**
      * @param args the command line arguments
      */
-    Map<String,ArrayList<String>> taskMap;
-    String initFile = "taskList.xml";
-    ArrayList<String> logsFileList;
+    Map<String,ArrayList<String>> taskMap = new <String,ArrayList<String>>HashMap();
+    String initFile ="taskList.xml";
+    ArrayList<String> logsFileList = new ArrayList<String>();
     float fileTime = 10;
     float fileSize = 10;
     
@@ -66,10 +66,9 @@ public class LogsCleaner {
                     if (c == '\n' || c == '\r') {  
                         line = rf.readLine();  
                         if (line != null) {  
-                            contentList.add(new String(line.getBytes("ISO-8859-1"), charset));
+                            contentList.add(new String(line));
                             cowNum = cowNum + 1;
                         } else {  
-                            contentList.add(line);
                             cowNum = cowNum + 1;
                         }  
                         nextend--;  
@@ -77,18 +76,21 @@ public class LogsCleaner {
                     nextend--;  
                     rf.seek(nextend);  
                     if (nextend == 0) {// 当文件指针退至文件开始处，输出第一行  
-                        // System.out.println(rf.readLine());  
-                        System.out.println(new String(rf.readLine().getBytes(  
-                                "ISO-8859-1"), charset));  
+                        System.out.println(new String(rf.readLine()));  
                     }  
                 }
                 //清空源文件内容
                 rf.setLength(0);
                 //负责最后100行内容到源文件
-                for(int i = contentList.size();i<0;i--)
+                System.out.println(contentList.size());
+                for(int i = contentList.size() - 1;i>0;i--)
                 {
+                    System.out.println(contentList.get(i));
                     rf.writeChars(contentList.get(i));
+                    rf.writeChar('\r');
+                    rf.writeChar('\n');
                 }
+                System.out.println("cut file："+fileAbsoluteName);
             }  
               
         } catch (FileNotFoundException e) {  
@@ -115,6 +117,7 @@ public class LogsCleaner {
 
         if((modify + fileTime*24*60*60*1000) <= current) {
             f.delete();
+            System.out.println("delete file:"+fileAbsoluteName);
             return false;
         }      
         return true;
@@ -122,18 +125,22 @@ public class LogsCleaner {
     //获取清理目录下的所有文件
     private void getAllFiles(String workSpace,ArrayList<String> filter) {
         // 建立当前目录中文件的File对象  
-        File file = new File(workSpace);  
-        // 取得代表目录中所有文件的File对象数组  
-        File[] list = file.listFiles();
-        logsFileList.clear();
-        for (int i = 0; i < list.length; i++) {
-            if (!list[i].isDirectory())
-            {
-                String fileName = list[i].getName();
-                if(filter.contains(fileName.substring(fileName.lastIndexOf(".")+1,fileName.length()))){
-                    logsFileList.add(list[i].getAbsolutePath());
+        File file = new File(workSpace);
+        if(file.exists()){
+            // 取得代表目录中所有文件的File对象数组  
+            File[] list = file.listFiles();
+            logsFileList.clear();
+            for (int i = 0; i < list.length; i++) {
+                if (!list[i].isDirectory())
+                {
+                    String fileName = list[i].getName();
+                    if(filter.contains(fileName.substring(fileName.lastIndexOf(".")+1,fileName.length()))){
+                        logsFileList.add(list[i].getAbsolutePath());
+                    }
                 }
             }
+        }else{
+            System.out.println("directory not found，reset the right directory："+workSpace);
         }
     }
     
@@ -168,23 +175,22 @@ public class LogsCleaner {
         //获取要删除文件的最晚修改时间
         String theSize = root.element("filesize").getText();
         fileSize = Float.parseFloat(theSize);
-
-        for(Iterator i_action=root.elementIterator();i_action.hasNext();){
+        
+        //获取文档的工作列表元素
+        Element task = root.element("taskList");
+        List taskLists  = task.elements("task");
+        for(Iterator i_action=taskLists.listIterator();i_action.hasNext();){
             Element e_action = (Element)i_action.next();
-            for(Iterator a_action=e_action.attributeIterator();a_action.hasNext();){
-                Attribute attribute = (Attribute)a_action.next();
-                String filePath = attribute.getValue();
-                attribute = (Attribute)a_action.next();
-                String fliterKind = attribute.getValue();
-                ArrayList<String> fliterKinds = fliter(fliterKind);
-                taskMap.put(filePath,fliterKinds);
-            }
+            String filePath = e_action.element("documentPath").getText();
+            String fliterKind = e_action.element("fileFilter").getText();
+            ArrayList<String> fliterKinds = fliter(fliterKind);
+            taskMap.put(filePath,fliterKinds);         
         }
     }
     
     //解析文件格式名fliter
     public ArrayList<String> fliter(String temp){
-        String fileKind[] = temp.split("|");
+        String fileKind[] = temp.split("\\|");
         ArrayList<String> fileKindList = new ArrayList();
         for(String kind:fileKind){
             fileKindList.add(kind);
@@ -195,23 +201,31 @@ public class LogsCleaner {
         // TODO code application logic here
         LogsCleaner mainWork = new LogsCleaner();
         mainWork.initConfig();
-        while(true){
-            for (Entry<String, ArrayList<String>> entry: mainWork.taskMap.entrySet()) {
-                String key = entry.getKey();
-                ArrayList<String> value = entry.getValue();
-                mainWork.logsFileList.clear();
-                mainWork.getAllFiles(key, value);
-                for(String tem:mainWork.logsFileList){
-                    if(mainWork.dealwithLongerTimesFile(tem))
-                        mainWork.dealwithBigFile(tem, "UTF-8");
+        try{
+            while(true){
+                for (Entry<String, ArrayList<String>> entry: mainWork.taskMap.entrySet()) {
+                    String key = entry.getKey();
+                    ArrayList<String> value = entry.getValue();;
+                    mainWork.logsFileList.clear();
+                    mainWork.getAllFiles(key, value);
+                    System.out.println("cleanning:"+key);
+                    if(!mainWork.logsFileList.isEmpty()){
+                        for(String tem:mainWork.logsFileList){
+                            if(mainWork.dealwithLongerTimesFile(tem))
+                                mainWork.dealwithBigFile(tem, "UTF-8");
+                        }
+                    }
                 }
-
-            }
-            try {
-                Thread.sleep(1000*24*60*60);//括号里面的5000代表5000毫秒，也就是5秒，可以该成你需要的时间
-            } catch (InterruptedException e) {
-                    e.printStackTrace();
-            }
-            }
+                try {
+                    System.out.println("Clean-up completed，reclean on 24 hours later!");
+                    Thread.sleep(1000*24*60*60);//括号里面的5000代表5000毫秒，也就是5秒，可以该成你需要的时间
+                } catch (InterruptedException e) {
+                        e.printStackTrace();
+                }
+                }
+        } catch(NullPointerException e){
+            System.out.println(e);
+            System.out.println("no task,program quit!");
+        }
     }
 }
